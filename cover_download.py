@@ -14,7 +14,7 @@ from bilibili_mingchao_scraper import BilibiliVideoScraper
 def test_search():
     """测试搜索功能"""
     print("=" * 60)
-    print("测试1: 搜索功能")
+    print("测试1: 搜索视频功能")
     print("=" * 60)
     
     scraper = BilibiliVideoScraper()
