@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-B站鸣潮热门视频爬取脚本
-由于B站反爬虫机制，需要手动配合操作
-"""
 
 import time
 import csv
