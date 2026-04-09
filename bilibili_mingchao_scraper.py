@@ -1,11 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-B站鸣潮热门视频信息采集脚本
-- 搜索鸣潮相关视频
-- 获取TOP 10播放量视频
-- 下载视频封面
-"""
 
 import requests
 import json
