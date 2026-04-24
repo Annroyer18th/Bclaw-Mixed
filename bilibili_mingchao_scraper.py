@@ -215,6 +215,70 @@ class BilibiliVideoScraper:
 
         return output_path
 
+    def get_video_info_by_bvid(self, bvid):
+        """通过BV号获取视频详情"""
+        url = "https://api.bilibili.com/x/web-interface/view"
+        params = {'bvid': bvid}
+
+        try:
+            response = requests.get(url, headers=self.headers, params=params, timeout=15)
+            if response.status_code != 200:
+                print(f"请求失败，状态码: {response.status_code}")
+                return None
+
+            data = response.json()
+            if data.get('code') != 0:
+                print(f"API返回错误: {data.get('message', '未知错误')}")
+                return None
+
+            info = data['data']
+            return {
+                'title': info.get('title', ''),
+                'author': info.get('owner', {}).get('name', ''),
+                'bvid': bvid,
+                'pic': info.get('pic', ''),
+                'url': f"https://www.bilibili.com/video/{bvid}"
+            }
+        except Exception as e:
+            print(f"获取视频信息出错: {e}")
+            return None
+
+    def run_bv_lookup(self):
+        """BV号查询模式：输入BV号，下载对应封面"""
+        print("=" * 60)
+        print("请输入BV号（例如：BV1xx411c7mD）")
+        print("=" * 60)
+        print()
+
+        while True:
+            bvid = input("BV号: ").strip()
+            if not bvid:
+                print("BV号不能为空，请重新输入")
+                continue
+            if not bvid.upper().startswith('BV'):
+                print("BV号格式不正确，应以BV开头，请重新输入")
+                continue
+            break
+
+        print(f"\n正在查询 {bvid} 的视频信息...")
+        info = self.get_video_info_by_bvid(bvid)
+
+        if not info:
+            print("\n⚠ 查询失败，请检查BV号是否正确")
+            return
+
+        print(f"\n视频标题: {info['title']}")
+        print(f"作者: {info['author']}")
+        print(f"链接: {info['url']}")
+
+        print(f"\n正在下载封面...")
+        filepath = self.download_cover(info['pic'], bvid)
+
+        if filepath:
+            print(f"\n✓ 封面已保存至: {filepath}")
+        else:
+            print("\n⚠ 封面下载失败")
+
     def run(self):
         """执行完整流程"""
         print("=" * 60)
@@ -304,8 +368,22 @@ class BilibiliVideoScraper:
 
 
 def main():
+    scanf = input
+    print("=" * 60)
+    print("B站视频工具")
+    print("=" * 60)
+    print("1. 搜索鸣潮热门视频 TOP10（默认）")
+    print("2. 输入 BV 号获取视频封面")
+    print("-" * 60)
+
+    choice = scanf("请选择功能 (1/2): ").strip()
+    print()
+
     scraper = BilibiliVideoScraper()
-    scraper.run()
+    if choice == '2':
+        scraper.run_bv_lookup()
+    else:
+        scraper.run()
 
 if __name__ == "__main__":
     main()
