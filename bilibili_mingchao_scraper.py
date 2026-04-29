@@ -370,7 +370,7 @@ class BilibiliVideoScraper:
 def main():
     scanf = input
     print("=" * 60)
-    print("B站视频工具")
+    print("B站视频工具，用于采集和分析B站视频数据")
     print("=" * 60)
     print("1. 搜索鸣潮热门视频 TOP10（默认）")
     print("2. 输入 BV 号获取视频封面")
