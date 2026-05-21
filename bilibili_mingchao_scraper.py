@@ -364,7 +364,7 @@ class BilibiliVideoScraper:
                 f.write(f"链接: {video['url']}\n")
                 f.write("-" * 60 + "\n\n")
 
-        print(f"✓ 汇总报告已生成: {summary_filename}")
+        print(f"✓ 报告已生成: {summary_filename}")
 
 
 def main():
