@@ -318,7 +318,7 @@ class BilibiliVideoScraper:
 
         # 4. 下载封面图片
         print("\n" + "=" * 60)
-        print("开始下载封面图片...")
+        print("开始下载封面图片...请等待")
         print("=" * 60)
 
         for video in sorted_videos:
