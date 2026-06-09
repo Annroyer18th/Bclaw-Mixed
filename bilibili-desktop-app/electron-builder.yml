@@ -1,0 +1,21 @@
+appId: com.bilibili.desktop
+productName: B站工具
+directories:
+  output: release
+  buildResources: assets
+files:
+  - "dist/**/*"
+  - "src/**/*"
+  - "assets/**/*"
+  - "package.json"
+  - "!**/node_modules/**/*"
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  shortcutName: B站工具
+  uninstallDisplayName: B站工具

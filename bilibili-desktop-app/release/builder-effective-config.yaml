@@ -1,0 +1,18 @@
+directories:
+  output: release
+  buildResources: build
+appId: com.bilibili.desktop
+productName: B站工具
+files:
+  - filter:
+      - dist/**/*
+      - src/**/*
+      - assets/**/*
+      - package.json
+      - node_modules/**/*
+win:
+  target: nsis
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+electronVersion: 28.3.3
