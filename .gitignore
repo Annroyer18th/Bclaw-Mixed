@@ -1,4 +1,7 @@
 node_modules/
 test-files/
 covers/
+.codebuddy/
+__pycache__/
 bilibili-desktop-app/node_modules/
+bilibili-desktop-app/release/

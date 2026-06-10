@@ -3,7 +3,7 @@
     <!-- 左侧功能列表 -->
     <div class="sidebar">
       <div class="logo">
-        <img src="/deepseek.svg" alt="Logo" class="logo-icon" />
+        <img src="./deepseek.svg" alt="Logo" class="logo-icon" />
         <span class="logo-text">B站工具</span>
       </div>
       <FunctionList @select="handleSelect" />
