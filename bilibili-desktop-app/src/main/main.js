@@ -64,7 +64,12 @@ function registerIPC() {
       const topVideos = bilibiliService.getTopVideos(videos, options.topN || 10)
 
       for (const video of topVideos) {
-        const coverUrl = await bilibiliService.getCoverUrlFromPage(video.bvid) || video.pic
+        const info = await bilibiliService.getCoverUrlFromPage(video.bvid)
+        let coverUrl = info?.pic || video.pic
+        if (bilibiliService.isPlaceholderPic(coverUrl)) {
+          sendLog('warning', `检测到占位图封面: ${video.bvid}，跳过下载`)
+          continue
+        }
         await fileService.downloadCover(coverUrl, video.bvid, null, (msg) => sendLog('info', msg))
         await bilibiliService.sleep(Math.random() * 2000 + 1000)
       }
@@ -79,7 +84,7 @@ function registerIPC() {
     }
   })
 
-  // 获取视频封面（依次尝试三种方法）
+  // 获取视频封面（统一调用 getVideoInfo）
   ipcMain.handle('get-cover', async (event, options) => {
     if (typeof options === 'string') {
       options = { bvid: options }
@@ -94,33 +99,7 @@ function registerIPC() {
     try {
       sendLog('info', `正在查询 BV 号: ${bvid}`)
 
-      // 方法1: API 获取
-      sendLog('info', '尝试方法1: API 获取...')
-      let videoInfo = await bilibiliService.getVideoInfoFromApi(bvid)
-      if (videoInfo) {
-        sendLog('info', `方法1成功: ${videoInfo.title}`)
-      } else {
-        // 方法2: 页面抓取
-        sendLog('info', '方法1失败，尝试方法2: 页面抓取...')
-        videoInfo = await bilibiliService.getVideoInfoFromPage(bvid)
-        if (videoInfo) {
-          sendLog('info', `方法2成功: ${videoInfo.title}`)
-        } else {
-          // 方法3: 仅提取封面URL
-          sendLog('info', '方法2失败，尝试方法3: 仅提取封面...')
-          const pic = await bilibiliService.getCoverUrlFromPage(bvid)
-          if (pic) {
-            videoInfo = {
-              title: '未知标题',
-              author: '未知作者',
-              bvid,
-              pic,
-              url: `https://www.bilibili.com/video/${bvid}`
-            }
-            sendLog('info', '方法3成功: 已获取封面链接')
-          }
-        }
-      }
+      const videoInfo = await bilibiliService.getVideoInfo(bvid)
 
       if (!videoInfo) {
         sendLog('error', `所有方法均失败，请检查 BV 号是否正确: ${bvid}`)
@@ -130,6 +109,15 @@ function registerIPC() {
       sendLog('info', `视频标题: ${videoInfo.title}`)
       sendLog('info', `作者: ${videoInfo.author}`)
       sendLog('info', `封面链接: ${videoInfo.pic}`)
+
+      if (bilibiliService.isPlaceholderPic(videoInfo.pic)) {
+        sendLog('warning', '检测到占位图封面，尝试重新获取...')
+        const retryInfo = await bilibiliService.getCoverUrlFromPage(bvid)
+        if (retryInfo?.pic && !bilibiliService.isPlaceholderPic(retryInfo.pic)) {
+          Object.assign(videoInfo, retryInfo)
+          sendLog('info', `重试成功，新封面链接: ${videoInfo.pic}`)
+        }
+      }
 
       sendLog('info', '正在下载封面...')
       const coverPath = await fileService.downloadCover(videoInfo.pic, bvid, savePath, (msg) => sendLog('info', msg))

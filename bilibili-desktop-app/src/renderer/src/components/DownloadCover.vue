@@ -156,7 +156,7 @@ const currentResult = computed(() => {
 
 // 添加BV号到队列
 function addToQueue() {
-  const bvid = form.value.bvid.trim().toUpperCase()
+  const bvid = form.value.bvid.trim()
   
   if (!bvid) {
     ElMessage.warning('请输入BV号')

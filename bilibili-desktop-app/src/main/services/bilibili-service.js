@@ -89,56 +89,42 @@ class BilibiliService {
 
   // ==================== 封面提取模块 ====================
 
-  // 网页wxwork-share-pic组件中图片直链
+  // 检测是否为B站占位图（默认头像/封面）
+  isPlaceholderPic(picUrl) {
+    if (!picUrl || typeof picUrl !== 'string') return true
+    return picUrl.includes('/bfs/static/jinkela/')
+  }
+
+  // 从HTML中提取封面的统一内部方法（多策略）
+  _extractCoverFromHtml(html) {
+    // 策略1: wxwork-share-pic img元素 src
+    let match = html.match(/<img[^>]+id=["']wxwork-share-pic["'][^>]+src=["']([^"']+)["']/)
+    if (match && match[1]) {
+      let url = match[1].replace(/@\.avif$/, '')
+      if (url.startsWith('//')) url = 'https:' + url
+      return url
+    }
+    // 策略2: og:image meta标签
+    match = html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/)
+    if (match && match[1]) {
+      let url = match[1].replace(/@\.avif$/, '')
+      if (url.startsWith('//')) url = 'https:' + url
+      return url
+    }
+    // 策略3: __INITIAL_STATE__ 内嵌JSON中的pic字段
+    match = html.match(new RegExp('window\.__INITIAL_STATE__\s*=\s*(\{[\s\S]*?\})(?:\s*</script>)?'))
+    if (match && match[1]) {
+      try {
+        const stateData = JSON.parse(match[1])
+        const pic = stateData?.videoData?.pic || stateData?.videoInfo?.pic || ''
+        if (pic && !this.isPlaceholderPic(pic)) return pic
+      } catch (e) { /* JSON解析失败，跳过 */ }
+    }
+    return ''
+  }
+
+  // 从页面提取视频信息（含标题、作者、封面），返回完整 videoInfo 对象
   async getCoverUrlFromPage(bvid) {
-    try {
-      const response = await this.axiosInstance.get(
-        `https://www.bilibili.com/video/${bvid}`,
-        { headers: { ...this.headers, 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' } }
-      )
-      if (response.status !== 200) return null
-
-      const html = typeof response.data === 'string' ? response.data : String(response.data)
-      const match = html.match(/<img[^>]+id=["']wxwork-share-pic["'][^>]+src=["']([^"']+)["']/)
-      if (!match || !match[1]) return null
-
-      let coverUrl = match[1].replace(/@\.avif$/, '')
-      if (coverUrl.startsWith('//')) coverUrl = 'https:' + coverUrl
-      return coverUrl
-    } catch (error) {
-      console.log(`[getCoverUrlFromPage] 出错: ${error.message}`)
-      return null
-    }
-  }
-
-  // API方式，失败后回退到页面抓取
-  async getVideoInfoFromApi(bvid) {
-    // 优先尝试 API
-    try {
-      const response = await this.axiosInstance.get(
-        'https://api.bilibili.com/x/web-interface/view',
-        { params: { bvid } }
-      )
-      if (response.status === 200 && response.data.code === 0 && response.data.data) {
-        const info = response.data.data
-        return {
-          title: info.title || '',
-          author: info.owner?.name || '',
-          bvid,
-          pic: info.pic || '',
-          url: `https://www.bilibili.com/video/${bvid}`
-        }
-      }
-    } catch (error) {
-      console.log(`[getVideoInfoByBvid] API失败，回退到页面抓取: ${error.message}`)
-    }
-
-    // API 失败，从页面抓取
-    return this._getVideoInfoFromPage(bvid)
-  }
-
-  // 从页面HTML提取视频信息（备用方案）
-  async _getVideoInfoFromPage(bvid) {
     try {
       const response = await this.axiosInstance.get(
         `https://www.bilibili.com/video/${bvid}`,
@@ -153,25 +139,118 @@ class BilibiliService {
         || html.match(/<title>([^<]+)<\/title>/)
       const title = titleMatch
         ? titleMatch[1].replace(/_哔哩哔哩_bilibili$/, '').trim()
-        : '未知标题'
+        : ''
 
       // 提取作者
       const authorMatch = html.match(/"name":"([^"]+)","face"/)
-      const author = authorMatch ? authorMatch[1] : '未知作者'
+      const author = authorMatch ? authorMatch[1] : ''
 
-      // 提取封面（复用 getCoverUrlFromPage 的逻辑）
-      let pic = ''
-      const coverMatch = html.match(/<img[^>]+id=["']wxwork-share-pic["'][^>]+src=["']([^"']+)["']/)
-      if (coverMatch && coverMatch[1]) {
-        pic = coverMatch[1].replace(/@\.avif$/, '')
-        if (pic.startsWith('//')) pic = 'https:' + pic
+      // 提取封面（多策略）
+      const pic = this._extractCoverFromHtml(html)
+
+      if (!title && !pic) return null
+
+      return {
+        title,
+        author,
+        bvid,
+        pic,
+        url: `https://www.bilibili.com/video/${bvid}`
       }
-
-      return { title, author, bvid, pic, url: `https://www.bilibili.com/video/${bvid}` }
     } catch (error) {
-      console.log(`[_getVideoInfoFromPage] 出错: ${error.message}`)
+      console.log(`[getCoverUrlFromPage] 出错: ${error.message}`)
       return null
     }
+  }
+
+  // API方式获取视频信息，占位图时自动回退到页面抓取
+  async getVideoInfoFromApi(bvid) {
+    // 方法1: 优先尝试 B站 API
+    try {
+      const response = await this.axiosInstance.get(
+        'https://api.bilibili.com/x/web-interface/view',
+        { params: { bvid } }
+      )
+      if (response.status === 200 && response.data.code === 0 && response.data.data) {
+        const info = response.data.data
+        const pic = info.pic || ''
+        // 占位图检测：如果API返回的是默认占位图，视为无效，继续尝试页面抓取
+        if (pic && !this.isPlaceholderPic(pic)) {
+          return {
+            title: info.title || '',
+            author: info.owner?.name || '',
+            bvid,
+            pic,
+            url: `https://www.bilibili.com/video/${bvid}`
+          }
+        }
+        console.log(`[getVideoInfoFromApi] API返回占位图(${pic})，回退到页面抓取`)
+      }
+    } catch (error) {
+      console.log(`[getVideoInfoFromApi] API失败，回退到页面抓取: ${error.message}`)
+    }
+
+    // 方法2 / 回退: 从页面 HTML 抓取
+    return this._getVideoInfoFromPage(bvid)
+  }
+
+  // 从页面HTML提取视频信息（备用方案，与 getCoverUrlFromPage 共用同一套多策略）
+  async _getVideoInfoFromPage(bvid) {
+    return this.getCoverUrlFromPage(bvid)
+  }
+
+  // ==================== 统一调用入口 ====================
+
+  /**
+   * 获取视频完整信息（标题、作者、封面）
+   * 统一入口，依次调用三种方法，内置异常检测和占位图校验
+   * @param {string} bvid - BV号
+   * @returns {Promise<{title,author,bvid,pic,url}|null>} 视频信息对象，失败返回null
+   */
+  async getVideoInfo(bvid) {
+    if (!bvid) return null
+
+    const logPrefix = `[getVideoInfo:${bvid}]`
+
+    // 方法1: API 获取（内部已包含占位图检测 + 页面回退）
+    console.log(`${logPrefix} 尝试方法1: API...`)
+    try {
+      const result = await this.getVideoInfoFromApi(bvid)
+      if (result && !this.isPlaceholderPic(result.pic)) {
+        console.log(`${logPrefix} 方法1成功: ${result.title}`)
+        return result
+      }
+    } catch (e) {
+      console.log(`${logPrefix} 方法1异常: ${e.message}`)
+    }
+
+    // 方法2: 页面直接抓取（更完整的提取）
+    console.log(`${logPrefix} 尝试方法2: 页面抓取...`)
+    try {
+      const result = await this.getCoverUrlFromPage(bvid)
+      if (result && result.pic && !this.isPlaceholderPic(result.pic)) {
+        console.log(`${logPrefix} 方法2成功: ${result.title}`)
+        return result
+      }
+    } catch (e) {
+      console.log(`${logPrefix} 方法2异常: ${e.message}`)
+    }
+
+    // 方法3: 仅提取封面URL作为最后兜底（返回最小可用信息）
+    console.log(`${logPrefix} 尝试方法3: 最小兜底...`)
+    try {
+      // 重新尝试页面抓取，这次不限制占位图，只要有任何pic就返回
+      const fallback = await this.getCoverUrlFromPage(bvid)
+      if (fallback && fallback.pic) {
+        console.log(`${logPrefix} 方法3兜底成功（可能为占位图）: ${fallback.pic}`)
+        return fallback
+      }
+    } catch (e) {
+      console.log(`${logPrefix} 方法3异常: ${e.message}`)
+    }
+
+    console.log(`${logPrefix} 所有方法均失败`)
+    return null
   }
 
   // ====================随机请求延迟====================
