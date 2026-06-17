@@ -16,10 +16,6 @@ class BilibiliScraper:
         }
         
     def search_mingchao_videos(self, page=1, page_size=20):
-        """
-        搜索鸣潮相关视频
-        注意：此方法可能因反爬虫被限制
-        """
         search_url = "https://api.bilibili.com/x/web-interface/search/type"
         params = {
             'search_type': 'video',
