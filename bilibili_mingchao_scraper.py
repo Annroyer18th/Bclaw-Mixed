@@ -25,7 +25,7 @@ class BilibiliVideoScraper:
         os.makedirs(self.covers_dir, exist_ok=True)
 
     def search_videos(self, keyword='鸣潮', page_size=50):
-        """搜索B站视频，支持重试机制"""
+        """搜索B站视频，重试3次，每次间隔2-5秒"""
         search_url = "https://api.bilibili.com/x/web-interface/search/type"
         params = {
             'search_type': 'video',
