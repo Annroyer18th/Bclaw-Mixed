@@ -165,7 +165,7 @@ class BilibiliVideoScraper:
             return ''
 
     def create_excel(self, videos):
-        """创建Excel表格，videos已按播放量降序排列"""
+        """创建Excel表格，视频按播放量降序排列"""
         if not videos:
             print("没有视频数据可导出")
             return None
