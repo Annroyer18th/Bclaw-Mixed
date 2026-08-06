@@ -94,64 +94,11 @@ class BilibiliScraper:
         print(f"已导出 {len(sorted_videos)} 个视频到 {filename}")
         return True
 
-def manual_input_mode():
-    """
-    手动输入模式
-    当API被限制时，手动获取视频信息
-    """
-    print("\n=== 手动输入模式 ===")
-    print("请手动在浏览器中打开B站，搜索'鸣潮'，找到热门视频")
-    print("然后输入视频信息（输入'q'退出）：\n")
-    
-    videos = []
-    video_num = 1
-    
-    while True:
-        print(f"\n--- 视频 #{video_num} ---")
-        bv = input("BV号（如：BV1xx411c7mD）或输入'q'退出: ").strip()
-        
-        if bv.lower() == 'q':
-            break
-        
-        if not bv.startswith('BV'):
-            print("请输入有效的BV号")
-            continue
-        
-        title = input("视频标题: ").strip()
-        author = input("作者: ").strip()
-        play = input("播放量（数字）: ").strip()
-        duration = input("时长（如：12:34）: ").strip()
-        cover_url = input("封面图片URL（可留空）: ").strip()
-        
-        video_info = {
-            '标题': title,
-            '作者': author,
-            '播放量': int(play) if play.isdigit() else 0,
-            '时长': duration,
-            'BV号': bv,
-            '链接': f"https://www.bilibili.com/video/{bv}",
-            '封面URL': cover_url,
-            '上传时间': '',
-            '弹幕数': 0,
-            '点赞数': 0
-        }
-        
-        videos.append(video_info)
-        video_num += 1
-        
-        if len(videos) >= 10:
-            print(f"已收集 {len(videos)} 个视频")
-            cont = input("继续输入？(y/n): ").strip().lower()
-            if cont != 'y':
-                break
-    
-    return videos
-
 def main():
     scraper = BilibiliScraper()
     
     print("=" * 60)
-    print("B站鸣潮热门视频爬取工具")
+    print("B站鸣潮视频数据爬取工具")
     print("=" * 60)
     
     # 尝试API搜索
